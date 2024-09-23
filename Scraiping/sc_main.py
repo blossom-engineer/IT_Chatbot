@@ -3,10 +3,14 @@ import requests
 import xml
 import xml.etree.ElementTree as ET
 
+from bs4 import BeautifulSoup as bs
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+
+from sc_dataclass import HtmlContent
 
 # options = Options()
 # options.add_argument("--headless")
@@ -21,7 +25,7 @@ class Scraiping(metaclass=ABCMeta):
     def __init__(self, url: str) -> None:
         raise NotImplementedError
 
-    def content_getter(self) -> None:
+    def content_getter(self):
         raise NotImplementedError
 
 class Scraiping_RDF(Scraiping):
@@ -29,7 +33,7 @@ class Scraiping_RDF(Scraiping):
         self.URL = url
         pass
 
-    def content_getter(self) -> None:
+    def content_getter(self) -> list[str]:
         res: requests.Response = requests.get(self.URL)
 
         # NOTE: 異常系 - ステータスコードが200以外ならエラー
@@ -41,15 +45,37 @@ class Scraiping_RDF(Scraiping):
 
         xml_str = res.content.decode('utf-8')
         root = ET.fromstring(xml_str)
+        result: list[str] = []
 
         for item in root.findall('{http://purl.org/rss/1.0/}item'):
-            print(item[0].text)
-            print(item[1].text)
-            print()
-        return
+            result.append(item[1].text)
+
+        return result
+
+
+class Scraiping_html(Scraiping):
+    def __init__(self, url: str) -> None:
+        self.URL = url
+
+    def content_getter(self) -> None:
+        html = requests.get(self.URL)
+        soup = bs(html.content, 'html.parser')
+
+        content = soup.find('main').get_text()
+        title = soup.find('h1').get_text()
+
+        page_content = HtmlContent(page_title=title, content=content)
+
+        return page_content
+
 
 if __name__ == '__main__':
     sc_rdf = Scraiping_RDF(
         'https://www.ipa.go.jp/security/alert-rss.rdf'
     )
-    sc_rdf.content_getter()
+    url_list = sc_rdf.content_getter()
+
+    for url in url_list:
+        html = Scraiping_html(url)
+        content = html.content_getter()
+        print(content)
