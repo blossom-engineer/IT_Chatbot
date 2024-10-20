@@ -61,10 +61,19 @@ class Scraiping_html(Scraiping):
         html = requests.get(self.URL)
         soup = bs(html.content, 'html.parser')
 
-        content = soup.find('main').get_text()
+        # NOTE: main要素のテキストを取得
+        content = soup.select('main p.article-txt')
+
+        # NOTE: contentから文字列部分のみ抽出して配列化
+        content_txt_list = [ txt.text for txt in content ]
+        content_txt_list.pop()
+
+        content_txt = ''.join(content_txt_list)
+
+        # NOTE: ページのタイトルを取得
         title = soup.find('h1').get_text()
 
-        page_content = HtmlContent(page_title=title, content=content)
+        page_content = HtmlContent(page_title=title, content=content_txt)
 
         return page_content
 
